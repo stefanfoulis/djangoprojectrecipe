@@ -60,6 +60,13 @@ settings
   production setup from your development setup. It defaults to
   `development`.
 
+src-dir
+  An optional subdirectory to place the project into. The default is
+  to place the project into the root. If you prefer to place your 
+  sourcecode into its own 'src' directory, set `src-dir = src` and
+  the project directory will be placed in `src/myprojectname` and 
+  'src' will be added to the path.
+
 download-cache
   Set this to a folder somewhere on you system to speed up
   installation. The recipe will use this folder as a cache for a

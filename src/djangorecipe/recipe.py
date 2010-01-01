@@ -145,6 +145,7 @@ class Recipe(object):
             buildout['buildout']['parts-directory'], name)
         options['bin-directory'] = buildout['buildout']['bin-directory']
 
+        options.setdefault('src-dir', '')
         options.setdefault('project', 'project')
         options.setdefault('settings', 'development')
 
@@ -180,8 +181,9 @@ class Recipe(object):
     def install(self):
         location = self.options['location']
         base_dir = self.buildout['buildout']['directory']
-
-        project_dir = os.path.join(base_dir, self.options['project'])
+        
+        
+        project_dir = os.path.join(base_dir, self.options['src-dir'], self.options['project'])
 
         download_dir = self.buildout['buildout']['download-cache']
         if not os.path.exists(download_dir):
@@ -408,6 +410,7 @@ class Recipe(object):
         extra_paths = [self.options['location'],
                        self.buildout['buildout']['directory']
                        ]
+        if self.options['src-dir']: extra_paths.append(self.options['src-dir'])
 
         # Add libraries found by a site .pth files to our extra-paths.
         if 'pth-files' in self.options:

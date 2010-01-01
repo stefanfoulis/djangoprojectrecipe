@@ -1,5 +1,6 @@
 Description
 ===========
+** this is the custom version for divio
 
 This buildout recipe can be used to create a setup for Django. It will
 automatically download Django and install it in the buildout's

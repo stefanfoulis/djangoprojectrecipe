@@ -8,7 +8,7 @@ import mock
 from zc.buildout import UserError
 from zc.recipe.egg.egg import Scripts as ZCRecipeEggScripts
 
-from djangorecipe.recipe import Recipe
+from djangoprojectrecipe.recipe import Recipe
 
 # Add the testing dir to the Python path so we can use a fake Django
 # install. This needs to be done so that we can use this as a base for
@@ -17,15 +17,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'testing'))
 
 # Now that we have a fake Django on the path we can import the
 # scripts. These are depenent on a Django install, hence the fake one.
-from djangorecipe import test
-from djangorecipe import manage
+from djangoprojectrecipe import test
+from djangoprojectrecipe import manage
 
 
 class TestRecipe(unittest.TestCase):
 
     def setUp(self):
         # Create a directory for our buildout files created by the recipe
-        self.buildout_dir = tempfile.mkdtemp('djangorecipe')
+        self.buildout_dir = tempfile.mkdtemp('djangoprojectrecipe')
 
         self.bin_dir = os.path.join(self.buildout_dir, 'bin')
         self.develop_eggs_dir = os.path.join(self.buildout_dir,
@@ -45,7 +45,7 @@ class TestRecipe(unittest.TestCase):
                                            },
                               'python-version': {'executable': sys.executable}},
                              'django',
-                             {'recipe': 'djangorecipe',
+                             {'recipe': 'djangoprojectrecipe',
                               'version': 'trunk'})
 
     def tearDown(self):
@@ -69,7 +69,7 @@ class TestRecipe(unittest.TestCase):
                                      },
                         'python-version': {'executable': sys.executable}},
                        'django',
-                       {'recipe': 'djangorecipe',
+                       {'recipe': 'djangoprojectrecipe',
                         'version': 'trunk'}).options.copy() for i in range(2)])
 
     def test_svn_url(self):
@@ -183,7 +183,7 @@ class TestRecipe(unittest.TestCase):
         self.assert_('project.development' in contents)
         # and a line which set's up the WSGI app
         self.assert_("application = "
-                     "djangorecipe.wsgi.main('project.development', logfile='')"
+                     "djangoprojectrecipe.wsgi.main('project.development', logfile='')"
                      in contents)
         self.assert_("class logger(object)" not in contents)
 
@@ -196,7 +196,7 @@ class TestRecipe(unittest.TestCase):
         # It should also have a reference to our settings module
         self.assert_('project.development' in contents)
         # and a line which set's up the WSGI app
-        self.assert_("djangorecipe.fcgi.main('project.development', logfile='')"
+        self.assert_("djangoprojectrecipe.fcgi.main('project.development', logfile='')"
                      in contents)
         self.assert_("class logger(object)" not in contents)
 
@@ -287,7 +287,7 @@ class TestRecipe(unittest.TestCase):
         self.recipe.create_manage_script([], [])
         self.assert_(os.path.exists(manage))
         # Check that we have 'spameggs' as the project
-        self.assert_("djangorecipe.manage.main('spameggs.development')"
+        self.assert_("djangoprojectrecipe.manage.main('spameggs.development')"
                      in open(manage).read())
                      
     @mock.patch('shutil', 'rmtree')
@@ -303,8 +303,8 @@ class TestRecipe(unittest.TestCase):
     def test_fulfills_django_dependency(self, rmtree, path_exists, 
         urlretrieve, copytree, working_set, scripts, install_release, 
         manage, testrunner, develop):
-        # Test for https://bugs.launchpad.net/djangorecipe/+bug/397864
-        # djangorecipe should always fulfil the 'Django' requirement.        
+        # Test for https://bugs.launchpad.net/djangoprojectrecipe/+bug/397864
+        # djangoprojectrecipe should always fulfil the 'Django' requirement.        
         self.recipe.options['version'] = '1.0'
         path_exists.return_value = True
         working_set.return_value = (None, [])
@@ -409,7 +409,7 @@ class TestRecipe(unittest.TestCase):
         self.recipe.options['settings'] = 'spameggs'
         self.recipe.create_manage_script([], [])
         manage = os.path.join(self.bin_dir, 'django')
-        self.assert_("djangorecipe.manage.main('project.spameggs')"
+        self.assert_("djangoprojectrecipe.manage.main('project.spameggs')"
                      in open(manage).read())
 
     @mock.patch('urllib2', 'urlopen')
@@ -669,7 +669,7 @@ class TestRecipe(unittest.TestCase):
                                      },
                          'python-version': {'executable': '/python4k'}},
                         'django',
-                        {'recipe': 'djangorecipe', 'version': 'trunk',
+                        {'recipe': 'djangoprojectrecipe', 'version': 'trunk',
                          'wsgi': 'true'})
         recipe.make_scripts([], [])
         # This should have created a script in the bin dir
@@ -687,7 +687,7 @@ class TestRecipe(unittest.TestCase):
                          'python-version': {'executable': '/python4k'},
                          'py5k': {'executable': '/python5k'}},
                         'django',
-                        {'recipe': 'djangorecipe', 'version': 'trunk',
+                        {'recipe': 'djangoprojectrecipe', 'version': 'trunk',
                          'python': 'py5k', 'wsgi': 'true'})
         recipe.make_scripts([], [])
         self.assertEqual(open(wsgi_script).readlines()[0], '#!/python5k\n')
@@ -764,7 +764,7 @@ def setUp(test):
 
     # Make a semi permanent download cache to speed up the test
     tmp = tempfile.gettempdir()
-    cache_dir = os.path.join(tmp, 'djangorecipe-test-cache')
+    cache_dir = os.path.join(tmp, 'djangoprojectrecipe-test-cache')
     if not os.path.exists(cache_dir):
         os.mkdir(cache_dir)
 
@@ -779,7 +779,7 @@ download-cache = %(cache_dir)s
     os.environ['HOME'] = home
 
     zc.buildout.testing.install('zc.recipe.egg', test)
-    zc.buildout.testing.install_develop('djangorecipe', test)
+    zc.buildout.testing.install_develop('djangoprojectrecipe', test)
 
 
 def test_suite():

@@ -2,18 +2,18 @@ import os
 
 from setuptools import setup, find_packages
 
-version = '0.20-divio_1'
+version = '0.20.2'
 
 def read_file(name):
     return open(os.path.join(os.path.dirname(__file__),
                              name)).read()
 
-readme = read_file('README.txt')
-changes = read_file('CHANGES.txt')
+readme = read_file('README')
+changes = read_file('HISTORY')
 
-setup(name='djangorecipe',
+setup(name='djangoprojectrecipe',
       version=version,
-      description="Buildout recipe for Django",
+      description="Buildout recipe for Django - the divio branch",
       long_description='\n\n'.join([readme, changes]),
       classifiers=[
         'Framework :: Buildout',
@@ -25,9 +25,9 @@ setup(name='djangorecipe',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       keywords='',
-      author='Jeroen Vloothuis',
-      author_email='jeroen.vloothuis@xs4all.nl',
-      url='https://launchpad.net/djangorecipe',
+      author='Stefan Foulis',
+      author_email='stefan.foulis@gmail.com',
+      url='http://github.com/stefanfoulis/djangorecipe',
       license='BSD',
       zip_safe=False,
       install_requires=[
@@ -37,6 +37,6 @@ setup(name='djangorecipe',
       entry_points="""
       # -*- Entry points: -*-
       [zc.buildout]
-      default = djangorecipe.recipe:Recipe
+      default = djangoprojectrecipe.recipe:Recipe
       """,
       )

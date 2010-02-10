@@ -147,7 +147,7 @@ class Recipe(object):
 
         options.setdefault('src-dir', '')
         options.setdefault('project', 'project')
-        options.setdefault('settings', 'development')
+        options.setdefault('settings', '%s.development' % options['project'])
 
         options.setdefault('urlconf', options['project'] + '.urls')
         options.setdefault(
@@ -295,8 +295,7 @@ class Recipe(object):
               'djangoprojectrecipe.manage', 'main')],
             ws, self.options['executable'], self.options['bin-directory'],
             extra_paths = extra_paths,
-            arguments= "'%s.%s'" % (project,
-                                    self.options['settings']))
+            arguments= "'%s'" % (self.options['settings']))
 
 
 
@@ -310,8 +309,7 @@ class Recipe(object):
                 working_set, self.options['executable'],
                 self.options['bin-directory'],
                 extra_paths = extra_paths,
-                arguments= "'%s.%s', %s" % (
-                    self.options['project'],
+                arguments= "'%s', %s" % (
                     self.options['settings'],
                     ', '.join(["'%s'" % app for app in apps])))
         else:
@@ -351,6 +349,7 @@ class Recipe(object):
         open(os.path.join(project_dir, '__init__.py'), 'w').close()
 
     def make_scripts(self, extra_paths, ws):
+        print "superbuildoutrecipe making scripts :-)    "
         scripts = []
         _script_template = zc.buildout.easy_install.script_template
         for protocol in ('wsgi', 'fcgi'):
@@ -370,8 +369,8 @@ class Recipe(object):
                         self.options['executable'],
                         self.options['bin-directory'],
                         extra_paths=extra_paths,
-                        arguments= "'%s.%s', logfile='%s'" % (
-                            project, self.options['settings'],
+                        arguments= "'%s', logfile='%s'" % (
+                            self.options['settings'],
                             self.options.get('logfile'))))
         zc.buildout.easy_install.script_template = _script_template
         return scripts

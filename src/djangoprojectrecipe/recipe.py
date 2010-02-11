@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from random import choice
 import os
 import subprocess
@@ -5,6 +6,7 @@ import urllib2
 import shutil
 import logging
 import re
+import codecs
 
 from zc.buildout import UserError
 import zc.recipe.egg
@@ -104,6 +106,31 @@ TEMPLATE_DIRS = (
 
 '''
 
+site_settings_part_template = u'''# auto generated site settings for %(project)s %(site_name)s
+# anything between START and END will be replaced on every buildout
+from %(settings)s import *
+SITE_ID = %(site_id)s
+CACHE_MIDDLEWARE_KEY_PREFIX = '%(site_name)s-dev-%(project)s' # dev needs to be set correctly
+'''
+
+site_settings_template = u'''# -*- coding: utf-8 -*-
+# -- GENERATED START
+''' + site_settings_part_template + u'''# -- GENERATED END
+
+LANGUAGE_CODE='de'
+CMS_LANGUAGES = (
+  ('de', u'deutsch'),
+  ('en', u'english'),
+  #('fr', u'français'),
+  #('it', u'italiano'),
+  #('gr', u'ελληνικά'),
+  #('ro', u'română'),
+  #('hu', u'magyar'),
+  #('bo', u'bosanski'),
+  #('sr', u'српски'),
+)
+'''
+
 production_settings = '''
 from %(project)s.settings import *
 '''
@@ -147,8 +174,10 @@ class Recipe(object):
 
         options.setdefault('src-dir', '')
         options.setdefault('project', 'project')
-        options.setdefault('settings', '%s.development' % options['project'])
-
+        options.setdefault('settings', '%s.settings.development_local' % options['project'])
+        
+        options.setdefault('sites', 'sites')
+        
         options.setdefault('urlconf', options['project'] + '.urls')
         options.setdefault(
             'media_root',
@@ -166,7 +195,8 @@ class Recipe(object):
             'download-cache',
             os.path.join(buildout['buildout']['directory'],
                          'downloads'))
-
+        
+        options.setdefault('control-script', self.name)
         # mod_wsgi support script
         options.setdefault('wsgi', 'false')
         options.setdefault('fcgi', 'false')
@@ -176,14 +206,18 @@ class Recipe(object):
         # only try to download stuff if we aren't asked to install from cache
         self.install_from_cache = self.buildout['buildout'].get(
             'install-from-cache', '').strip() == 'true'
-
+    
+    def base_dir(self):
+        return self.buildout['buildout']['directory']
+    def project_dir(self):
+        return os.path.join(self.base_dir(), self.options['src-dir'], self.options['project'])
 
     def install(self):
         location = self.options['location']
-        base_dir = self.buildout['buildout']['directory']
+        base_dir = self.base_dir()
         
         
-        project_dir = os.path.join(base_dir, self.options['src-dir'], self.options['project'])
+        project_dir = self.project_dir()
 
         download_dir = self.buildout['buildout']['download-cache']
         if not os.path.exists(download_dir):
@@ -213,7 +247,7 @@ class Recipe(object):
         requirements, ws = self.egg.working_set(['djangoprojectrecipe'])
 
         script_paths = []
-
+        
         # Create the Django management script
         script_paths.extend(self.create_manage_script(extra_paths, ws))
 
@@ -222,7 +256,7 @@ class Recipe(object):
 
         # Make the wsgi and fastcgi scripts if enabled
         script_paths.extend(self.make_scripts(extra_paths, ws))
-
+        
         # Create default settings if we haven't got a project
         # egg specified, and if it doesn't already exist
         if not self.options.get('projectegg'):
@@ -232,7 +266,8 @@ class Recipe(object):
                 self.log.info(
                     'Skipping creating of project: %(project)s since '
                     'it exists' % self.options)
-
+                # Make the site settings, if enabled
+                self.make_site_settings()
         return script_paths + [location]
 
     def install_svn_version(self, version, download_dir, location,
@@ -290,19 +325,27 @@ class Recipe(object):
 
     def create_manage_script(self, extra_paths, ws):
         project = self.options.get('projectegg', self.options['project'])
-        return zc.buildout.easy_install.scripts(
-            [(self.options.get('control-script', self.name),
-              'djangoprojectrecipe.manage', 'main')],
-            ws, self.options['executable'], self.options['bin-directory'],
-            extra_paths = extra_paths,
-            arguments= "'%s'" % (self.options['settings']))
-
+        # create the startscripts for the sites:
+        site_configs = self.get_site_configs()
+        site_configs['main']=self.get_main_site_config()
+        scripts = []
+        for name, site_config in site_configs.items():
+            scripts.extend(
+                zc.buildout.easy_install.scripts(
+                    [(site_config['control-script'],
+                      'djangoprojectrecipe.manage', 'main')],
+                    ws, self.options['executable'], self.options['bin-directory'],
+                    extra_paths = extra_paths,
+                    arguments= "'%s'" % (site_config['settings_module']))
+            )
+        return scripts
 
 
     def create_test_runner(self, extra_paths, working_set):
         apps = self.options.get('test', '').split()
         # Only create the testrunner if the user requests it
         if apps:
+            scripts = []
             return zc.buildout.easy_install.scripts(
                 [(self.options.get('testrunner', 'test'),
                   'djangoprojectrecipe.test', 'main')],
@@ -349,7 +392,8 @@ class Recipe(object):
         open(os.path.join(project_dir, '__init__.py'), 'w').close()
 
     def make_scripts(self, extra_paths, ws):
-        print "superbuildoutrecipe making scripts :-)    "
+        site_configs = self.get_site_configs()
+        site_configs['main']=self.get_main_site_config()
         scripts = []
         _script_template = zc.buildout.easy_install.script_template
         for protocol in ('wsgi', 'fcgi'):
@@ -359,19 +403,19 @@ class Recipe(object):
             if self.options.get(protocol, '').lower() == 'true':
                 project = self.options.get('projectegg',
                                            self.options['project'])
-                scripts.extend(
-                    zc.buildout.easy_install.scripts(
-                        [('%s.%s' % (self.options.get('control-script',
-                                                      self.name),
-                                     protocol),
-                          'djangoprojectrecipe.%s' % protocol, 'main')],
-                        ws,
-                        self.options['executable'],
-                        self.options['bin-directory'],
-                        extra_paths=extra_paths,
-                        arguments= "'%s', logfile='%s'" % (
-                            self.options['settings'],
-                            self.options.get('logfile'))))
+                for name, site_config in site_configs.items():
+                    scripts.extend(
+                        zc.buildout.easy_install.scripts(
+                            [('%s.%s' % (site_config['control-script'],
+                                         protocol),
+                              'djangoprojectrecipe.%s' % protocol, 'main')],
+                            ws,
+                            self.options['executable'],
+                            self.options['bin-directory'],
+                            extra_paths=extra_paths,
+                            arguments= "'%s', logfile='%s'" % (
+                                site_config['settings_module'],
+                                self.options.get('logfile'))))
         zc.buildout.easy_install.script_template = _script_template
         return scripts
 
@@ -446,6 +490,9 @@ class Recipe(object):
 
         # Make the wsgi and fastcgi scripts if enabled
         self.make_scripts(extra_paths, ws)
+        
+        # Make the site settings, if enabled
+        self.make_site_settings()
 
     def command(self, cmd, **kwargs):
         output = subprocess.PIPE
@@ -462,7 +509,76 @@ class Recipe(object):
         f = open(file, 'w')
         f.write(template % options)
         f.close()
+    
+    def update_or_create_site_settings_file(self, site_options):
+        output = []
+        file = site_options['settings_file']
+        folder = os.path.dirname(file)
+        init_file = os.path.join(folder, '__init__.py')
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        if not os.path.exists(init_file):
+            self.create_file(init_file, '', {})
+        if os.path.exists(file):
+            print "     updating site settings for %s" % site_options['site_name']
+            input = codecs.open(file, 'r', 'utf-8').readlines()
+            is_generated = False
+            for line in input:
+                #line = line.strip('\n')
+                if line.startswith('# -- GENERATED START'):
+                    is_generated = True
+                    output.append(line)
+                elif line.startswith('# -- GENERATED END'):
+                    is_generated = False
+                    output.append(site_settings_part_template % site_options)
+                    output.append(line)
+                else:
+                    if is_generated == True:
+                        pass
+                    else:
+                        output.append(line)
+        else:
+            print "     creating site settings for %s" % site_options['site_name']
+            output = site_settings_template % site_options
+
+        f = codecs.open(file, 'w', 'utf-8')
+        f.write("".join(output))
+        f.close()
 
     def generate_secret(self):
         chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)'
         return ''.join([choice(chars) for i in range(50)])
+    
+    def make_site_settings(self):
+        project_dir = self.project_dir()
+        sites = self.get_site_configs()
+        for name, config in sites.items():
+            config['site_name'] = name
+            config['project'] = self.options['project']
+            config['settings'] = self.options['settings']
+            self.update_or_create_site_settings_file(
+                    config )
+    def get_site_configs(self):
+        '''
+        get the list of sites and the SITE_ID's
+        '''
+        sites_section = self.options['sites']
+        section = self.buildout.get(sites_section, {})
+        sites = {}
+        for name, value in section.items():
+            site_id = value #add more options here later
+            sites[name]={
+                'site_id': value, 
+                'site_name': name,
+                'settings_module':'%s.settings.sites.%s' % (self.options['project'], name),
+                'settings_file':os.path.join(self.project_dir(), 'settings/sites/%s.py' % name),
+                'control-script':'%s.%s' % (self.options['control-script'], name)
+                }
+        return sites
+    def get_main_site_config(self):
+        return {
+            'site_name': None,
+            'settings_module':'%s' % (self.options['settings'],),
+            'control-script':'%s' % (self.options['control-script'],),
+        }
+            

@@ -13,4 +13,6 @@ def main(settings_file):
                             % (settings_file, e))
         return sys.exit(1)
 
-    management.execute_manager(mod)
+    management.setup_environ(mod, settings_file)
+    utility = management.ManagementUtility()
+    utility.execute()

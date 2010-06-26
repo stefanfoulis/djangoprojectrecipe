@@ -15,7 +15,7 @@ def main(settings_file, logfile=None):
         sys.exit(1)
 
     # Setup settings
-    management.setup_environ(mod)
+    management.setup_environ(mod, settings_file)
 
     if logfile:
         import datetime

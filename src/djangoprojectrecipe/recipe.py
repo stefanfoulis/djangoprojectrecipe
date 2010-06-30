@@ -108,9 +108,15 @@ TEMPLATE_DIRS = (
 
 site_settings_part_template = u'''# auto generated site settings for %(project)s %(site_name)s
 # anything between START and END will be replaced on every buildout
-from %(settings)s import *
+from %(settings_switcher_module)s import *
 SITE_ID = %(site_id)s
-CACHE_MIDDLEWARE_KEY_PREFIX = '%(site_name)s-dev-%(project)s' # dev needs to be set correctly
+CACHE_MIDDLEWARE_KEY_PREFIX = '%(project)s-' + PROJECT_STAGE + '-%(site_name)s-'
+'''
+
+settings_switcher_template = '''# auto generated switcher file (imports the settings defined in the django reicpe
+# ignore this file from vcs to prevent unnecessary conflicts
+from %(settings)s import *
+PROJECT_STAGE = '%(project_stage)s'
 '''
 
 site_settings_template = u'''# -*- coding: utf-8 -*-
@@ -174,6 +180,7 @@ class Recipe(object):
 
         options.setdefault('src-dir', '')
         options.setdefault('project', 'project')
+        options.setdefault('project_stage', 'undefined')
         options.setdefault('settings', '%s.settings.development_local' % options['project'])
         
         options.setdefault('sites', 'sites')
@@ -502,8 +509,8 @@ class Recipe(object):
             cmd, shell=True, stdout=output, **kwargs)
         return command.wait()
 
-    def create_file(self, file, template, options):
-        if os.path.exists(file):
+    def create_file(self, file, template, options, overwrite=False):
+        if not overwrite and os.path.exists(file):
             return
 
         f = open(file, 'w')
@@ -551,6 +558,11 @@ class Recipe(object):
     
     def make_site_settings(self):
         project_dir = self.project_dir()
+        self.create_file(
+                os.path.join(self.project_dir(), 'settings/switcher.py'), 
+                settings_switcher_template, 
+                {'settings':self.options['settings'],'project_stage': self.options['project_stage']},
+                overwrite=True)
         sites = self.get_site_configs()
         for name, config in sites.items():
             config['site_name'] = name
@@ -571,6 +583,7 @@ class Recipe(object):
                 'site_id': value, 
                 'site_name': name,
                 'settings_module':'%s.settings.sites.%s' % (self.options['project'], name),
+                'settings_switcher_module': '%s.settings.switcher' % (self.options['project'],),
                 'settings_file':os.path.join(self.project_dir(), 'settings/sites/%s.py' % name),
                 'control-script':'%s.%s' % (self.options['control-script'], name)
                 }

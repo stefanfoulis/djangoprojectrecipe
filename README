@@ -3,29 +3,21 @@ Description
 ** this is the custom version for divio
 
 This buildout recipe can be used to create a setup for Django. It will
-automatically download Django and install it in the buildout's
-sandbox. You can use either a release version of Django or a
-subversion checkout (by using `trunk` instead of a version number.
+create the necessary commands to start the django shell and can optionally
+create start scripts for wsgi and fcgi.
 
 You can see an example of how to use the recipe below::
 
   [buildout]
-  parts = satchmo django
+  parts = django
   eggs = ipython
 
-  [satchmo]
-  recipe = gocept.download
-  url = http://www.satchmoproject.com/snapshots/satchmo-0.6.tar.gz
-  md5sum = 659a4845c1c731be5cfe29bfcc5d14b1
 
   [django]
   recipe = djangoprojectrecipe
-  version = trunk
   settings = development
   eggs = ${buildout:eggs}
-  extra-paths =
-    ${satchmo:location}
-  project = dummyshop
+  project = myproject
 
 
 Supported options
@@ -46,15 +38,6 @@ python
   This option can be used to specify a specific Python version which can be a
   different version from the one used to run the buildout.
 
-version
-  The version argument can accept a few different types of
-  arguments. You can specify `trunk`. In this case it will do a
-  checkout of the Django trunk. Another option is to specify a release
-  number like `0.96.2`. This will download the release
-  tarball. Finally you can specify a full svn url (including the
-  revision number). An example of this would be
-  `http://code.djangoproject.com/svn/django/branches/newforms-admin@7833`.
-
 settings
   You can set the name of the settings file which is to be used with
   this option. This is useful if you want to have a different
@@ -67,11 +50,6 @@ src-dir
   sourcecode into its own 'src' directory, set `src-dir = src` and
   the project directory will be placed in `src/myprojectname` and 
   'src' will be added to the path.
-
-download-cache
-  Set this to a folder somewhere on you system to speed up
-  installation. The recipe will use this folder as a cache for a
-  downloaded version of Django.
 
 extra-paths
   All paths specified here will be used to extend the default Python
@@ -151,7 +129,6 @@ The next example shows you how to use some more of the options::
 
   [django]
   recipe = djangoprojectrecipe
-  version = trunk
   settings = development
   project = exampleproject
   wsgi = true
@@ -184,7 +161,6 @@ path::
 
   [myproject]
   recipe	= djangoprojectrecipe
-  version	= 1.0.2
   eggs		= PIL
   project	= myproject
   settings	= settings

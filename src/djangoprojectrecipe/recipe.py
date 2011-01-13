@@ -172,10 +172,7 @@ class Recipe(object):
     def __init__(self, buildout, name, options):
         self.log = logging.getLogger(name)
         self.egg = zc.recipe.egg.Egg(buildout, options['recipe'], options)
-
         self.buildout, self.name, self.options = buildout, name, options
-        options['location'] = os.path.join(
-            buildout['buildout']['parts-directory'], name)
         options['bin-directory'] = buildout['buildout']['bin-directory']
 
         options.setdefault('src-dir', '')
@@ -196,12 +193,6 @@ class Recipe(object):
             options['pythonpath'] = options['extra-paths']
         else:
             options.setdefault('extra-paths', options.get('pythonpath', ''))
-
-        # Usefull when using archived versions
-        buildout['buildout'].setdefault(
-            'download-cache',
-            os.path.join(buildout['buildout']['directory'],
-                         'downloads'))
         
         options.setdefault('control-script', self.name)
         # mod_wsgi support script
@@ -209,10 +200,6 @@ class Recipe(object):
         options.setdefault('fcgi', 'false')
         options.setdefault('wsgilog', '')
         options.setdefault('logfile', '')
-
-        # only try to download stuff if we aren't asked to install from cache
-        self.install_from_cache = self.buildout['buildout'].get(
-            'install-from-cache', '').strip() == 'true'
     
     def base_dir(self):
         return self.buildout['buildout']['directory']
@@ -220,35 +207,8 @@ class Recipe(object):
         return os.path.join(self.base_dir(), self.options['src-dir'], self.options['project'])
 
     def install(self):
-        location = self.options['location']
         base_dir = self.base_dir()
-        
-        
         project_dir = self.project_dir()
-
-        download_dir = self.buildout['buildout']['download-cache']
-        if not os.path.exists(download_dir):
-            os.mkdir(download_dir)
-
-        version = self.options['version']
-        # Remove a pre-existing installation if it is there
-        if os.path.exists(location):
-            shutil.rmtree(location)
-
-        if self.is_svn_url(version):
-            self.install_svn_version(version, download_dir, location,
-                                     self.install_from_cache)
-        else:
-            tarball = self.get_release(version, download_dir)
-            # Extract and put the dir in its proper place
-            self.install_release(version, download_dir, tarball, location)
-
-        self.options['setup'] = location
-        development = zc.recipe.egg.Develop(self.buildout,
-                                            self.options['recipe'],
-                                            self.options)
-        development.install()
-        del self.options['setup']
 
         extra_paths = self.get_extra_paths()
         requirements, ws = self.egg.working_set(['djangoprojectrecipe'])
@@ -275,61 +235,8 @@ class Recipe(object):
                     'it exists' % self.options)
                 # Make the site settings, if enabled
                 self.make_site_settings()
-        return script_paths + [location]
-
-    def install_svn_version(self, version, download_dir, location,
-                            install_from_cache):
-        svn_url = self.version_to_svn(version)
-        download_location = os.path.join(
-            download_dir, 'django-' +
-            self.version_to_download_suffix(version))
-        if not install_from_cache:
-            if os.path.exists(download_location):
-                if self.svn_update(download_location, version):
-                    raise UserError(
-                        "Failed to update Django; %s. "
-                        "Please check your internet connection." % (
-                            download_location))
-            else:
-                self.log.info("Checking out Django from svn: %s" % svn_url)
-                cmd = 'svn co %s %s' % (svn_url, download_location)
-                if not self.buildout['buildout'].get('verbosity'):
-                    cmd += ' -q'
-                if self.command(cmd):
-                    raise UserError("Failed to checkout Django. "
-                                    "Please check your internet connection.")
-        else:
-            self.log.info("Installing Django from cache: " + download_location)
-
-        shutil.copytree(download_location, location)
-
-
-    def install_release(self, version, download_dir, tarball, destination):
-        extraction_dir = os.path.join(download_dir, 'django-archive')
-        setuptools.archive_util.unpack_archive(tarball, extraction_dir)
-        # Lookup the resulting extraction dir instead of guessing it
-        # (Django releases have a tendency not to be consistend here)
-        untarred_dir = os.path.join(extraction_dir,
-                                    os.listdir(extraction_dir)[0])
-        shutil.move(untarred_dir, destination)
-        shutil.rmtree(extraction_dir)
-
-    def get_release(self, version, download_dir):
-        tarball = os.path.join(download_dir, 'django-%s.tar.gz' % version)
-
-        # Only download when we don't yet have an archive
-        if not os.path.exists(tarball):
-            download_url = 'http://www.djangoproject.com/download/%s/tarball/'
-            self.log.info("Downloading Django from: %s" % (
-                    download_url % version))
-
-            tarball_f = open(tarball, 'wb')
-            f = urllib2.urlopen(download_url % version)
-            tarball_f.write(f.read())
-            tarball_f.close()
-            f.close()
-        return tarball
-
+        return script_paths
+    
     def create_manage_script(self, extra_paths, ws):
         project = self.options.get('projectegg', self.options['project'])
         # create the startscripts for the sites:
@@ -426,40 +333,9 @@ class Recipe(object):
         zc.buildout.easy_install.script_template = _script_template
         return scripts
 
-    def is_svn_url(self, version):
-        # Search if there is http/https/svn or svn+[a tunnel identifier] in the
-        # url or if the trunk marker is used, all indicating the use of svn
-        svn_version_search = re.compile(
-            r'^(http|https|svn|svn\+[a-zA-Z-_]+)://|^(trunk)$').search(version)
-        return svn_version_search is not None
-
-    def version_to_svn(self, version):
-        if version == 'trunk':
-            return 'http://code.djangoproject.com/svn/django/trunk/'
-        else:
-            return version
-
-    def version_to_download_suffix(self, version):
-        if version == 'trunk':
-            return 'svn'
-        return [p for p in version.split('/') if p][-1]
-
-    def svn_update(self, path, version):
-        command = 'svn up'
-        revision_search = re.compile(r'@([0-9]*)$').search(
-            self.options['version'])
-
-        if revision_search is not None:
-            command += ' -r ' + revision_search.group(1)
-        self.log.info("Updating Django from svn")
-        if not self.buildout['buildout'].get('verbosity'):
-            command += ' -q'
-        return self.command(command, cwd=path)
 
     def get_extra_paths(self):
-        extra_paths = [self.options['location'],
-                       self.buildout['buildout']['directory']
-                       ]
+        extra_paths = []
         if self.options['src-dir']: extra_paths.append(self.options['src-dir'])
 
         # Add libraries found by a site .pth files to our extra-paths.
@@ -482,13 +358,7 @@ class Recipe(object):
         return extra_paths
 
     def update(self):
-        newest = self.buildout['buildout'].get('newest') != 'false'
-        if newest and not self.install_from_cache and \
-                self.is_svn_url(self.options['version']):
-            self.svn_update(self.options['location'], self.options['version'])
-
         extra_paths = self.get_extra_paths()
-        requirements, ws = self.egg.working_set(['djangoprojectrecipe'])
         # Create the Django management script
         self.create_manage_script(extra_paths, ws)
 

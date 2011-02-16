@@ -1,6 +1,5 @@
 Description
 ===========
-** this is the custom version for divio
 
 This buildout recipe can be used to create a setup for Django. It will
 create the necessary commands to start the django shell and can optionally

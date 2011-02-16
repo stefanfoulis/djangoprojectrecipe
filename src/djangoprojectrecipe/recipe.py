@@ -359,6 +359,8 @@ class Recipe(object):
 
     def update(self):
         extra_paths = self.get_extra_paths()
+        requirements, ws = self.egg.working_set(['djangoprojectrecipe'])
+        
         # Create the Django management script
         self.create_manage_script(extra_paths, ws)
 
@@ -428,8 +430,11 @@ class Recipe(object):
     
     def make_site_settings(self):
         project_dir = self.project_dir()
+        switcher_path = os.path.join(self.project_dir(), 'settings')
+        if not os.path.exists(switcher_path):
+            os.makedirs(switcher_path)
         self.create_file(
-                os.path.join(self.project_dir(), 'settings/switcher.py'), 
+                os.path.join(switcher_path, 'switcher.py'), 
                 settings_switcher_template, 
                 {'settings':self.options['settings'],'project_stage': self.options['project_stage']},
                 overwrite=True)

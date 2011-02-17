@@ -1,5 +1,4 @@
 import os
-
 from setuptools import setup, find_packages
 
 # Dynamically calculate the version based on django.VERSION.
@@ -9,12 +8,12 @@ def read_file(name):
     return open(os.path.join(os.path.dirname(__file__),
                              name)).read()
 
-readme = read_file('README')
-changes = read_file('HISTORY')
+readme = read_file('README.rst')
+changes = read_file('HISTORY.rst')
 
 setup(name='djangoprojectrecipe',
       version=version,
-      description="Buildout recipe for Django - the divio branch",
+      description="simple buildout recipe for django projects",
       long_description='\n\n'.join([readme, changes]),
       classifiers=[
         'Framework :: Buildout',
@@ -23,12 +22,11 @@ setup(name='djangoprojectrecipe',
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: BSD License',
         ],
-      package_dir={'': 'src'},
-      packages=find_packages('src'),
+      packages=find_packages(),
       keywords='',
       author='Stefan Foulis',
       author_email='stefan.foulis@gmail.com',
-      url='http://github.com/stefanfoulis/djangorecipe',
+      url='http://github.com/stefanfoulis/djangoprojectrecipe',
       license='BSD',
       zip_safe=False,
       install_requires=[

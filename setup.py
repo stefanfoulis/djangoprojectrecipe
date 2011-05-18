@@ -1,8 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-# Dynamically calculate the version based on django.VERSION.
-version = __import__('djangoprojectrecipe').get_version()
+version = __import__('djangoprojectrecipe').__version__
 
 def read_file(name):
     return open(os.path.join(os.path.dirname(__file__),

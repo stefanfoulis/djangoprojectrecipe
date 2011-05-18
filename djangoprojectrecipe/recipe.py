@@ -65,6 +65,11 @@ class Recipe(object):
         if self.extra_paths:
             options['extra-paths'] = '\n'.join(self.extra_paths)
 
+        if buildout['buildout'].get('relative-paths', '') == 'true':
+            self.relative_paths = options['buildout-directory']
+        else:
+            self.relative_paths = False
+
     def install(self):
         requirements, ws = self.egg.working_set(['djangoprojectrecipe'])
 
@@ -94,7 +99,9 @@ class Recipe(object):
                   'djangoprojectrecipe.manage', 'main')],
                 ws, self.options['executable'], self.options['bin-directory'],
                 extra_paths=extra_paths,
-                arguments="'%s'" % (site_config['settings_module']))
+                arguments="'%s'" % (site_config['settings_module']),
+                relative_paths=self.relative_paths
+            )
         )
         return scripts
 
@@ -118,7 +125,9 @@ class Recipe(object):
                         extra_paths=extra_paths,
                         arguments="'%s', logfile='%s'" % (
                             site_config['settings_module'],
-                            self.options.get('logfile'))))
+                            self.options.get('logfile')),
+                        relative_paths = self.relative_paths,
+                        ))
         zc.buildout.easy_install.script_template = _script_template
         return scripts
 

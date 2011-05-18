@@ -1,6 +1,12 @@
 Changes
 =======
 
+
+1.1.1 (2011-05-18)
+------------------
+
+* added support for buildout relative-paths
+
 1.1.0 (2011-03-17)
 ------------------
 

@@ -61,6 +61,11 @@ The recipe supports the following options.
   for fcgi. You can use the base directory for relative paths:
   ``logfile = ${buildout:directory}/log/django.log``
 
+``manage-entrypoint``
+  The main entry point for all management commands. By default, this is
+  ``djangoprojectrecipe.manage.main``. Use this setting if you have to do
+  some custom setup on management commands.
+
 
 FCGI specific settings
 ======================

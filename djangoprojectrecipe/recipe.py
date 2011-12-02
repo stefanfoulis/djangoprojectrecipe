@@ -43,6 +43,7 @@ class Recipe(object):
         options.setdefault('src-dir', self.buildout['buildout']['directory'])
         options.setdefault('project', 'project')
         options.setdefault('settings', '%s.settings' % options['project'])
+        options.setdefault('manage-entrypoint', 'djangoprojectrecipe.manage.main')
 
         # Set this so the rest of the recipe can expect the values to be
         # there. We need to make sure that both pythonpath and extra-paths are
@@ -92,11 +93,13 @@ class Recipe(object):
     def create_manage_script(self, extra_paths, ws):
         # create the startscripts
         site_config = self.get_main_site_config()
+        entry_point = self.options['manage-entrypoint'].rsplit('.', 1)
+
         scripts = []
         scripts.extend(
             zc.buildout.easy_install.scripts(
                 [(site_config['control-script'],
-                  'djangoprojectrecipe.manage', 'main')],
+                  entry_point[0], entry_point[1])],
                 ws, self.options['executable'], self.options['bin-directory'],
                 extra_paths=extra_paths,
                 arguments="'%s'" % (site_config['settings_module']),
